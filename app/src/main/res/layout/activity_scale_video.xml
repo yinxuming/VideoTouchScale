@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".ScaleVideoActivity">
+
+    <FrameLayout
+        android:id="@+id/video_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <cn.yinxm.media.video.surface.SimpleTextureViewPlayer
+            android:id="@+id/texture_player"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+
+    <RelativeLayout
+        android:id="@+id/play_control_area"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageButton
+            android:id="@+id/btn_play_pause"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_centerInParent="true"
+            android:clickable="true"
+            android:scaleType="centerInside"
+            android:src="@drawable/small_new_pip_play" />
+    </RelativeLayout>
+
+</RelativeLayout>
