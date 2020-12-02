@@ -43,17 +43,167 @@ public boolean onTouchEvent(MotionEvent event) {
 }
 ```
 #### 2. ScaleGestureDetector
+使用`ScaleGestureDetector`来识别onTouchEvent中的手势触摸操作，得到`onScaleBegin`、`onScale`、`onScaleEnd`三种回调，在回调里面通过`VideoTouchScaleHandler`对视频进行缩放、平移操作。
 
+1. 添加手势触摸层`GestureLayer`，使用`ScaleGestureDetector`识别手势
+    ```java
+    /**
+     * 手势处理layer层
+     */
+    public final class GestureLayer implements IGestureLayer, GestureDetector.OnGestureListener,
+            GestureDetector.OnDoubleTapListener {
+        private static final String TAG = "GestureLayer";
+
+        private Context mContext;
+        private FrameLayout mContainer;
+
+        /** 手势检测 */
+        private GestureDetector mGestureDetector;
+
+        /** 手势缩放 检测 */
+        private ScaleGestureDetector mScaleGestureDetector;
+        /** 手势缩放 监听 */
+        private VideoScaleGestureListener mScaleGestureListener;
+        /** 手势缩放 处理 */
+        private VideoTouchScaleHandler mScaleHandler;
+
+
+        private IVideoTouchAdapter mVideoTouchAdapter;
+
+        public GestureLayer(Context context, IVideoTouchAdapter videoTouchAdapter) {
+            mContext = context;
+            mVideoTouchAdapter = videoTouchAdapter;
+            initContainer();
+            initTouchHandler();
+        }
+
+        private void initContainer() {
+            mContainer = new FrameLayout(mContext) {
+                @Override
+                public boolean dispatchTouchEvent(MotionEvent ev) {
+                    return super.dispatchTouchEvent(ev);
+                }
+
+                @Override
+                public boolean onInterceptTouchEvent(MotionEvent ev) {
+                    return super.onInterceptTouchEvent(ev);
+                }
+
+                @Override
+                public boolean onTouchEvent(MotionEvent event) {
+                    boolean isConsume = onGestureTouchEvent(event);
+                    if (isConsume) {
+                        return true;
+                    } else {
+                        return super.onTouchEvent(event);
+                    }
+                }
+            };
+        }
+
+        public void initTouchHandler() {
+            mGestureDetector = new GestureDetector(mContext, this);
+            mGestureDetector.setOnDoubleTapListener(this);
+
+            // 手势缩放
+            mScaleGestureListener = new VideoScaleGestureListener(this);
+            mScaleGestureDetector = new ScaleGestureDetector(getContext(), mScaleGestureListener);
+
+            // 缩放 处理
+            mScaleHandler = new VideoTouchScaleHandler(getContext(), mContainer, mVideoTouchAdapter);
+            mScaleGestureListener.mScaleHandler = mScaleHandler;
+
+        }
+
+        @Override
+        public void onLayerRelease() {
+            if (mGestureDetector != null) {
+                mGestureDetector.setOnDoubleTapListener(null);
+            }
+        }
+
+        @Override
+        public boolean onGestureTouchEvent(MotionEvent event) {
+            try {
+                int pointCount = event.getPointerCount();
+                if (pointCount == 1 && event.getAction() == MotionEvent.ACTION_UP) {
+                    if (mScaleHandler.isScaled()) {
+                        mScaleHandler.showScaleReset();
+                    }
+                }
+                if (pointCount > 1) {
+                    boolean isConsume = mScaleGestureDetector.onTouchEvent(event);
+                    if (isConsume) {
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "", e);
+            }
+
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                return true;
+            }
+            return false;
+        }
+
+    ...
+    }
+
+
+2. **ScaleGestureDetector.OnScaleGestureListener** 手势缩放回调处理
+
+    ```java
+    /**
+     * 手势缩放 播放画面
+     */
+    public class VideoScaleGestureListener implements ScaleGestureDetector.OnScaleGestureListener {
+        private static final String TAG = "VideoScaleGestureListener";
+        private IGestureLayer mGestureLayer;
+        public VideoTouchScaleHandler mScaleHandler;
+
+        public VideoScaleGestureListener(IGestureLayer gestureLayer) {
+            mGestureLayer = gestureLayer;
+        }
+
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            if (mScaleHandler != null) {
+                return mScaleHandler.onScale(detector);
+            }
+            return false;
+        }
+
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            if (mScaleHandler != null) {
+                boolean isConsume = mScaleHandler.onScaleBegin(detector);
+                if (isConsume) {
+                    return true;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public void onScaleEnd(ScaleGestureDetector detector) {
+            if (mScaleHandler != null) {
+                mScaleHandler.onScaleEnd(detector);
+            }
+
+        }
+    }
+    ```
 
 ### 2.2 缩放平移处理
 1. **双指缩放**
     使用`Matrix.postScale(float sx, float sy, float px, float py)`，这里有几个参数，前两个指定x，y轴上的缩放倍数，后两个指定缩放中心点位置。
     - 如何计算**缩放倍数**？
-        本次缩放倍数 = 本次双指间距 / 上次手指间距：`currentDiffScale = detector.getCurrentSpan() / mLastSpan`
+        本次缩放倍数 = 本次两指间距 / 上次两指间距：`currentDiffScale = detector.getCurrentSpan() / mLastSpan`
     - 如何确定**缩放中心点**？
-        缩放中心为两手指开始缩放的中心位置点：onScaleBegin时，`scaleCenterX = detector.getFocusX(); scaleCenterY = detector.getFocusY();`
+        缩放中心为两指开始触摸时的中心位置点，即`onScaleBegin`时，`scaleCenterX = detector.getFocusX(); scaleCenterY = detector.getFocusY();`
     - **postXXX**和**preXXX**的区别？
-        postXXX为右乘，preXXX为前乘。出现这两种操作，主要是矩阵乘法不满足交换律，实际使用过程中，固定选择一种方式即可。为了方便理解，直接来段代码，令：原矩阵M，位移变换矩阵T(x, y)，则：
+        postXXX为右乘，preXXX为前乘。出现这两种操作，主要是**矩阵乘法不满足交换律**，实际使用过程中，固定选择一种方式即可。为了方便理解，直接来段代码，令：原矩阵M，位移变换矩阵T(x, y)，则：
         ```java
         M.postTranslate(tx, ty); // 等价 M' = T * M
         M.preTranslate(tx, ty); // 等价 M' = M * T
@@ -72,15 +222,15 @@ public boolean onTouchEvent(MotionEvent event) {
 
 
 ### 2.4 缩放移动结束后动效
-缩放结束后（onScaleEnd），为了方便用于观看，增强交互体验，需要根据缩放的大小、位置，重新调整画面动画移动到指定位置。指定位置主要有居中，和吸附屏幕两种。
+缩放结束后（onScaleEnd），为了增强交互体验，需要根据缩放的大小、位置，重新调整画面，动画移动到指定位置。指定位置主要有**居中**和**吸附屏幕边缘**两种。
 动画的移动，主要采用属性动画`ValueAnimator`.
 
 #### 1. 缩小居中
 缩放结束后，画面如果处于缩小模式，需要将画面移动到屏幕中央。
-1. 如何计算居中位置矩阵变换值？
+1. 如何计算**居中位置矩阵**变换值？
     缩放位移结束后得到变换后的矩阵`mScaleTransMatrix`，这也是动画的起始值，现在要推导动画的结束位置矩阵`scaleEndAnimMatrix`，要求在屏幕中居中，如果要直接用`mScaleTransMatrix`进行变换得到动画结束矩阵，
     需要在xy上平移一定距离，但是该距离具体指并不好计算。
-    我们这里从另一个方向下手，知道当前的缩放倍速`mScale`，视频TextureView占的区域，那么直接以该区域中心点进行矩阵缩放变化，就可以得到`scaleEndAnimMatrix`
+    这里我们从另一个方向下手，知道当前的缩放倍速`mScale`，视频TextureView占的区域，那么直接以该区域中心点进行矩阵缩放变化，就可以得到中心位置矩阵`scaleEndAnimMatrix`
      ```java
      RectF videoRectF = new RectF(0, 0, mTextureView.getWidth(), mTextureView.getHeight());
      if (mScale > 0 && mScale <= 1.0f) { // 缩小居中
@@ -98,13 +248,14 @@ public boolean onTouchEvent(MotionEvent event) {
 #### 2. 放大吸边
 缩放结束后，如果画面处于放大，且有画面边缘在屏幕内的，需要自动吸附到屏幕边缘。
 1. 如何判断是否有**画面边缘在屏幕内部**？
-    需要考虑四边：left、top、right、bottom位置的情况。如果要考虑画面在屏幕内部的总情况数，比较复杂繁琐，比如以left为例：有3中情况：
-     1. left：仅left边在屏幕内部，top、bottom边在屏幕外部，只需要移动画面left边到屏幕左边即可
-     2. left + top：left边和top边在屏幕内部，需要移动画面到屏幕左上角顶点位置
-     3. left + bottom：同上，需要移动画面到屏幕左下角顶点位置
+    需要考虑四边：left、top、right、bottom位置的情况。如果要考虑画面在屏幕内部的总情况数，比较繁琐和复杂，比如以left为例：有3种情况：
+     1. left：仅left边在屏幕内部，top、bottom边在屏幕外部，只需要移动画面left边到**屏幕左边**即可
+     2. left + top：left边和top边在屏幕内部，需要移动画面到屏幕**左上角**顶点位置
+     3. left + bottom：同上，需要移动画面到屏幕**左下角**顶点位置
+
      总共有8种情况，那有没有简单的方法？
-     有的，实际上，不管哪种情况，我们只需要关注画面的x、y方向需要移动的距离即可。问题简化为求画面在x、y轴上移动的距离：`transAnimX`、`transAnimY`
-     只要知道上述两个值，通过画面当前位置，位移即可得到动画结束位置矩阵`scaleEndAnimMatrix`。
+     有的，实际上，不管哪种情况，我们只需要关注**画面的x、y方向需要移动的距离**即可。问题简化为求画面在x、y轴上移动的距离：`transAnimX`、`transAnimY`
+     只要知道上述两个值，将当前画面位移进行位移，即可得到动画结束位置矩阵`scaleEndAnimMatrix`。
      ```java
       scaleEndAnimMatrix.set(mScaleTransMatrix);
       scaleEndAnimMatrix.postTranslate(transAnimX, transAnimY);
@@ -114,7 +265,7 @@ public boolean onTouchEvent(MotionEvent event) {
     屏幕的位置很好办，实际上就是画面原始大小位置：`RectF videoRectF = new RectF(0, 0, mTextureView.getWidth(), mTextureView.getHeight());`
     当前缩放移动后画面的位置呢？
     它对应的矩阵变化是`mScaleTransMatrix`，那能不能**根据这个矩阵推导出当前画面的位置**？
-    可以的，我们去找Matrix对外提供的一个接口，会发现有一个`Matrix.mapRect(RectF)`方法，这个方法就是用来测量**矩形区域经过矩阵变化**后，新的矩形区域所在**位置**。直接上代码：
+    可以的，我们去找Matrix对外提供的接口，会发现有一个`Matrix.mapRect(RectF)`方法，这个方法就是用来测量**矩形区域经过矩阵变化**后，新的矩形区域所在**位置**。直接上代码：
     ```java
     if (mScale > 1.0F) { // 放大，检测4边是否有在屏幕内部，有的话自动吸附到屏幕边缘
         RectF rectF = new RectF(0, 0, mTextureView.getWidth(), mTextureView.getHeight());
@@ -146,180 +297,8 @@ public boolean onTouchEvent(MotionEvent event) {
 ## 3. 项目完整代码
 [github完整源码](https://github.com/yinxuming/VideoTouchScale)
 
-### 3.1 手势处理：GestureLayer、VideoTouchScaleHandler
+### 3.1 手势缩放处理：VideoTouchScaleHandler
 ```java
-
-/**
- * 手势处理layer层
- */
-public final class GestureLayer implements IGestureLayer, GestureDetector.OnGestureListener,
-        GestureDetector.OnDoubleTapListener {
-    private static final String TAG = "GestureLayer";
-
-    private Context mContext;
-    private FrameLayout mContainer;
-
-    /** 手势检测 */
-    private GestureDetector mGestureDetector;
-
-    /** 手势缩放 检测 */
-    private ScaleGestureDetector mScaleGestureDetector;
-    /** 手势缩放 监听 */
-    private VideoScaleGestureListener mScaleGestureListener;
-    /** 手势缩放 处理 */
-    private VideoTouchScaleHandler mScaleHandler;
-
-
-    private IVideoTouchAdapter mVideoTouchAdapter;
-
-    public GestureLayer(Context context, IVideoTouchAdapter videoTouchAdapter) {
-        mContext = context;
-        mVideoTouchAdapter = videoTouchAdapter;
-        initContainer();
-        initTouchHandler();
-    }
-
-    @Override
-    public FrameLayout getContainer() {
-        return mContainer;
-    }
-
-    protected Context getContext() {
-        return mContext;
-    }
-
-    private void initContainer() {
-        mContainer = new FrameLayout(mContext) {
-            @Override
-            public boolean dispatchTouchEvent(MotionEvent ev) {
-                return super.dispatchTouchEvent(ev);
-            }
-
-            @Override
-            public boolean onInterceptTouchEvent(MotionEvent ev) {
-                return super.onInterceptTouchEvent(ev);
-            }
-
-            @Override
-            public boolean onTouchEvent(MotionEvent event) {
-                boolean isConsume = onGestureTouchEvent(event);
-                if (isConsume) {
-                    return true;
-                } else {
-                    return super.onTouchEvent(event);
-                }
-            }
-        };
-    }
-
-    public void initTouchHandler() {
-        mGestureDetector = new GestureDetector(mContext, this);
-        mGestureDetector.setOnDoubleTapListener(this);
-
-        // 手势缩放
-        mScaleGestureListener = new VideoScaleGestureListener(this);
-        mScaleGestureDetector = new ScaleGestureDetector(getContext(), mScaleGestureListener);
-
-        // 缩放 处理
-        mScaleHandler = new VideoTouchScaleHandler(getContext(), mContainer, mVideoTouchAdapter);
-        mScaleGestureListener.mScaleHandler = mScaleHandler;
-
-    }
-
-    @Override
-    public void onLayerRelease() {
-        if (mGestureDetector != null) {
-            mGestureDetector.setOnDoubleTapListener(null);
-        }
-    }
-
-    @Override
-    public boolean onGestureTouchEvent(MotionEvent event) {
-        try {
-            int pointCount = event.getPointerCount();
-            if (pointCount == 1 && event.getAction() == MotionEvent.ACTION_UP) {
-                if (mScaleHandler.isScaled()) {
-                    mScaleHandler.showScaleReset();
-                }
-            }
-            if (pointCount > 1) {
-                boolean isConsume = mScaleGestureDetector.onTouchEvent(event);
-                if (isConsume) {
-                    return true;
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "", e);
-        }
-
-        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean onSingleTapConfirmed(MotionEvent e) {
-        return onSingleTap(e);
-    }
-
-    /**
-     * 单击事件处理
-     *
-     * @param event 触摸事件
-     */
-    private boolean onSingleTap(MotionEvent event) {
-        return true;
-    }
-
-    @Override
-    public boolean onDoubleTap(MotionEvent e) {
-        return true;
-    }
-
-    @Override
-    public boolean onDoubleTapEvent(MotionEvent e) {
-        return false;
-    }
-
-    @Override
-    public boolean onDown(MotionEvent e) {
-        return false;
-    }
-
-    @Override
-    public void onShowPress(MotionEvent e) {
-
-    }
-
-    @Override
-    public boolean onSingleTapUp(MotionEvent e) {
-        return false;
-    }
-
-    @Override
-    public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-        if (mScaleHandler.isInScaleStatus()) {
-//                    if (mScaleHandler.isScaled()) {
-            return mScaleHandler.onScroll(e1, e2, distanceX, distanceY);
-//                    }
-        }
-                return false;
-    }
-
-    @Override
-    public void onLongPress(MotionEvent e) {
-
-    }
-
-    @Override
-    public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
-                           float velocityY) {
-        return false;
-    }
-
-}
-
 /**
  *  播放器画面双指手势缩放处理：
  *  <p>
