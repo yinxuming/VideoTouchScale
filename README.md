@@ -110,7 +110,7 @@ public boolean onTouchEvent(MotionEvent event) {
       scaleEndAnimMatrix.postTranslate(transAnimX, transAnimY);
      ```
 2. 如何计算画面在屏幕内部需要移动到各屏幕边缘的距离`transAnimX`、`transAnimY`？
-    这个问题是当时遇到的**最难**的问题（真的吗？就这），要解决这个问题，需要知道**屏幕位置**，**播放画面位置**。
+    要解决这个问题，需要知道**屏幕位置**，**播放画面位置**。
     屏幕的位置很好办，实际上就是画面原始大小位置：`RectF videoRectF = new RectF(0, 0, mTextureView.getWidth(), mTextureView.getHeight());`
     当前缩放移动后画面的位置呢？
     它对应的矩阵变化是`mScaleTransMatrix`，那能不能**根据这个矩阵推导出当前画面的位置**？
@@ -144,7 +144,7 @@ public boolean onTouchEvent(MotionEvent event) {
     ```
 
 ## 3. 项目完整代码
-[github完整源码]()
+[github完整源码](https://github.com/yinxuming/VideoTouchScale)
 
 ### 3.1 手势处理：GestureLayer、VideoTouchScaleHandler
 ```java
