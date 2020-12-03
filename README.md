@@ -18,8 +18,7 @@
 
 ### 2.1 如何检测手势缩放？
 1. `View.onTouchEvent`。分别监听手指按下（`MotionEvent.ACTION_POINTER_DOWN`）、抬起（`MotionEvent.ACTION_POINTER_UP`）、移动（`MotionEvent.ACTION_MOVE`）
-1. `ScaleGestureDetector`。直接使用手势缩放检测`ScaleGestureDetector`对View#onTouchEvent中的手势变化进行识别，通过`ScaleGestureDetector
-.OnScaleGestureListener`得到onScaleBegin-onScale-onScale ... -onScaleEnd的缩放回调，在回调中处理响应的缩放逻辑。
+1. `ScaleGestureDetector`。直接使用手势缩放检测`ScaleGestureDetector`对View#onTouchEvent中的手势变化进行识别，通过`ScaleGestureDetector.OnScaleGestureListener`得到onScaleBegin-onScale-onScale ... -onScaleEnd的缩放回调，在回调中处理响应的缩放逻辑。
 
 #### 1. View.onTouchEvent关键代码
 ```java
