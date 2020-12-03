@@ -149,7 +149,7 @@ public boolean onTouchEvent(MotionEvent event) {
 
     ...
     }
-
+    ```
 
 2. **ScaleGestureDetector.OnScaleGestureListener** 手势缩放回调处理
 
