@@ -1,6 +1,6 @@
 [toc]
 
-# Android 视频播放画面手势缩放与缩放后自动吸附动效实现
+# Android 视频手势缩放与自动吸附动效实现
 
 ## 1. 功能需求
 ![avatar](/doc/scale.gif)
