@@ -1,8 +1,14 @@
 [toc]
 
-# Android 视频手势缩放与自动吸附动效实现
+# Android 视频手势缩放与回弹动效实现（一）
+
+文章索引
+
+[Android 视频手势缩放与回弹动效实现（一）](https://github.com/yinxuming/VideoTouchScale/blob/master/README.md)：主要是实现视频双指：缩放、平移、回弹动效
+[Android 视频旋转、缩放与回弹动效实现（二）](https://github.com/yinxuming/VideoTouchScaleRotate/blob/main/README.md)：主要是实现视频双指：**旋转**、缩放、平移、回弹动效
 
 ## 1. 功能需求
+
 ![avatar](/doc/scale.gif)
 1. 双指缩放视频播放画面，支持设定最小、最大缩放范围
 2. 双指拖动画面可任意方向移动
@@ -65,29 +71,30 @@ public boolean onTouchEvent(MotionEvent event) {
         private VideoScaleGestureListener mScaleGestureListener;
         /** 手势缩放 处理 */
         private VideoTouchScaleHandler mScaleHandler;
+    ```
 
 
         private IVideoTouchAdapter mVideoTouchAdapter;
-
+    
         public GestureLayer(Context context, IVideoTouchAdapter videoTouchAdapter) {
             mContext = context;
             mVideoTouchAdapter = videoTouchAdapter;
             initContainer();
             initTouchHandler();
         }
-
+    
         private void initContainer() {
             mContainer = new FrameLayout(mContext) {
                 @Override
                 public boolean dispatchTouchEvent(MotionEvent ev) {
                     return super.dispatchTouchEvent(ev);
                 }
-
+    
                 @Override
                 public boolean onInterceptTouchEvent(MotionEvent ev) {
                     return super.onInterceptTouchEvent(ev);
                 }
-
+    
                 @Override
                 public boolean onTouchEvent(MotionEvent event) {
                     boolean isConsume = onGestureTouchEvent(event);
@@ -99,28 +106,28 @@ public boolean onTouchEvent(MotionEvent event) {
                 }
             };
         }
-
+    
         public void initTouchHandler() {
             mGestureDetector = new GestureDetector(mContext, this);
             mGestureDetector.setOnDoubleTapListener(this);
-
+    
             // 手势缩放
             mScaleGestureListener = new VideoScaleGestureListener(this);
             mScaleGestureDetector = new ScaleGestureDetector(getContext(), mScaleGestureListener);
-
+    
             // 缩放 处理
             mScaleHandler = new VideoTouchScaleHandler(getContext(), mContainer, mVideoTouchAdapter);
             mScaleGestureListener.mScaleHandler = mScaleHandler;
-
+    
         }
-
+    
         @Override
         public void onLayerRelease() {
             if (mGestureDetector != null) {
                 mGestureDetector.setOnDoubleTapListener(null);
             }
         }
-
+    
         @Override
         public boolean onGestureTouchEvent(MotionEvent event) {
             try {
@@ -139,13 +146,13 @@ public boolean onTouchEvent(MotionEvent event) {
             } catch (Exception e) {
                 Log.e(TAG, "", e);
             }
-
+    
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 return true;
             }
             return false;
         }
-
+    
     ...
     }
     ```
